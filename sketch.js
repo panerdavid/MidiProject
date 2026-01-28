@@ -3,7 +3,70 @@
  * Sections: Settings, State, p5.js Core, Logic, Visual Modules, Classes
  */
 
-// --- 1. CONFIGURATION & SETTINGS ---
+
+
+// --- CLASSES ---
+class NoteArray {
+  constructor() {
+    this.activeNotes = new Set()
+    this.noteVelocities = {}
+    this.masterVelocity = 0
+    this.chord = { current: "", last: "" }
+  }
+
+  add(note) {
+    this.activeNotes.add(note.identifier);
+    this.noteVelocities[note.identifier] = note.velocity;
+    this.updateVelocity();
+  }
+
+  remove(note) {
+    this.activeNotes.delete(note.identifier);
+    delete this.noteVelocities[note.identifier];
+    this.updateVelocity();
+  }
+
+  updateVelocity() {
+    let notes = Object.values(this.noteVelocities);
+    if (notes.length === 0) {
+      this.masterVelocity = 0;
+      return;
+    }
+    let sum = notes.reduce((acc, val) => acc + val, 0);
+    this.masterVelocity = sum / notes.length;
+  }
+}
+class Fish {
+  constructor(x, col) {
+    this.x = x;
+    this.y = height * CONFIG.horizon;
+    this.vx = random(-2, 2);
+    this.vy = random(-12, -18);
+    this.color = col;
+    this.alive = true;
+  }
+
+  update() {
+    this.x += this.vx;
+    this.y += this.vy;
+    this.vy += CONFIG.gravity;
+    if (this.y > height * CONFIG.horizon + 20 && this.vy > 0) {
+      this.alive = false;
+      state.physics.splash += 5;
+    }
+  }
+
+  draw() {
+    fill(red(this.color), green(this.color), blue(this.color), 200);
+    push();
+    translate(this.x, this.y);
+    rotate(atan2(this.vy, this.vx));
+    ellipse(0, 0, 15, 7);
+    pop();
+  }
+}
+
+// --- CONFIGURATION & SETTINGS ---
 const CONFIG = {
   horizon: 0.5,
   waveSpeed: 0.02,
@@ -13,12 +76,10 @@ const CONFIG = {
   highNoteThreshold: 0 // C6
 };
 
-// --- 2. GLOBAL STATE ---
+// --- GLOBAL STATE ---
 let state = {
   pianoActiveNotes: new NoteArray(),
   padActiveNotes: new NoteArray(),
-  noteVelocities: {}, // Stores the velocity of each individual key
-  masterVelocity: 0,   // The singular variable for your waves
   chord: { current: "", last: "" },
   colors: { target: [20, 20, 30], display: null },
   physics: { intensity: 0, splash: 0, highNotes: 0 },
@@ -54,13 +115,13 @@ function updateGlobalPhysics() {
   let target = color(...state.colors.target);
   state.colors.display = lerpColor(state.colors.display, target, CONFIG.lerpSpeed);
 
-  state.physics.intensity = lerp(state.physics.intensity, state.padActiveNotes.size, CONFIG.lerpSpeed);
+  state.physics.intensity = lerp(state.physics.intensity, state.padActiveNotes.activeNotes.size, CONFIG.lerpSpeed);
   state.physics.splash *= 0.95; // Natural decay
 }
 
 function updateMusicLogic() {
-  let pianoNotes = Array.from(state.pianoActiveNotes);
-  let synthNotes = Array.from(state.padActiveNotes)
+  let pianoNotes = Array.from(state.pianoActiveNotes.activeNotes);
+  let synthNotes = Array.from(state.padActiveNotes.activeNotes)
   let detected = Tonal.Chord.detect(synthNotes);
 
   if (detected.length > 0) {
@@ -136,45 +197,7 @@ function renderUI() {
   pop();
 }
 
-// --- 6. CLASSES ---
 
-class NoteArray {
-  constructor() {
-    this.activeNotes = new Set()
-    this.noteVelocities = {}
-    this.masterVelocity = 0
-    this.chord = { current: "", last: "" }
-  }
-}
-class Fish {
-  constructor(x, col) {
-    this.x = x;
-    this.y = height * CONFIG.horizon;
-    this.vx = random(-2, 2);
-    this.vy = random(-12, -18);
-    this.color = col;
-    this.alive = true;
-  }
-
-  update() {
-    this.x += this.vx;
-    this.y += this.vy;
-    this.vy += CONFIG.gravity;
-    if (this.y > height * CONFIG.horizon + 20 && this.vy > 0) {
-      this.alive = false;
-      state.physics.splash += 5;
-    }
-  }
-
-  draw() {
-    fill(red(this.color), green(this.color), blue(this.color), 200);
-    push();
-    translate(this.x, this.y);
-    rotate(atan2(this.vy, this.vx));
-    ellipse(0, 0, 15, 7);
-    pop();
-  }
-}
 
 // --- 7. MIDI & UTILS ---
 function initMIDI() {
@@ -183,31 +206,32 @@ function initMIDI() {
     const piano = WebMidi.inputs[0];
     const pad = WebMidi.inputs[1];
 
-    piano.addListener("noteon", e => {
-      state.pianoActiveNotes.add(e.note.identifier);
-      if (e.note.number >= CONFIG.highNoteThreshold) {
-        state.objects.fishes.push(new Fish(map(e.note.number, 84, 108, width * 0.2, width * 0.8), state.colors.display));
-      }
+    const handleEvent = (noteArray, e, isAdd) => {
+      if (isAdd) noteArray.add(e.note);
+      else noteArray.remove(e.note);
       updateMusicLogic();
+    };
+
+    piano.addListener("noteon", e => {
+      handleEvent(state.pianoActiveNotes, e, true);
     });
 
     piano.addListener("noteoff", e => {
-      state.pianoActiveNotes.delete(e.note.identifier);
-      updateMusicLogic();
+      handleEvent(state.pianoActiveNotes, e, false);
     });
     pad.addListener("noteon", e => {
-      state.padActiveNotes.add(e.note.identifier);
-      updateMusicLogic();
+      handleEvent(state.padActiveNotes, e, true);
     });
 
     pad.addListener("noteoff", e => {
-      state.padActiveNotes.delete(e.note.identifier);
-      updateMusicLogic();
+      handleEvent(state.padActiveNotes, e, false);
     });
   });
 
 
 }
+
+
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
