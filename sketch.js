@@ -15,8 +15,8 @@ const CONFIG = {
 
 // --- 2. GLOBAL STATE ---
 let state = {
-  pianoActiveNotes: new Set(),
-  padActiveNotes: new Set(),
+  pianoActiveNotes: new NoteArray(),
+  padActiveNotes: new NoteArray(),
   noteVelocities: {}, // Stores the velocity of each individual key
   masterVelocity: 0,   // The singular variable for your waves
   chord: { current: "", last: "" },
