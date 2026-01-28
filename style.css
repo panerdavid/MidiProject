@@ -1,0 +1,10 @@
+body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden; /* Removes scrollbars */
+  background-color: #14141e; /* Matches the sketch background */
+}
+
+canvas {
+  display: block; /* Removes tiny gaps at the bottom of the canvas */
+}
