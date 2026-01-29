@@ -37,13 +37,15 @@ class NoteArray {
   }
 }
 class Fish {
-  constructor(x, col, vel) {
+  constructor(x, col, vel, isSmall = false) {
     this.x = x;
     this.y = (height + 50) * CONFIG.horizon;
     this.vx = random(-2, 2);
     this.vy = map(vel, 0, 1, -5, -20);
     this.color = col;
+    this.isSmall = isSmall
     this.alive = true;
+    this.angle = 45;
     this.history = []; // Store past positions
   }
 
@@ -52,7 +54,7 @@ class Fish {
     if (this.history.length > 10) this.history.shift();
     this.x += this.vx;
     this.y += this.vy;
-    this.vy += CONFIG.gravity;
+    this.vy += CONFIG.gravity * 2;
     this.vx *= 0.99;
     if (this.y > height * CONFIG.horizon + 20 && this.vy > 0) {
       this.alive = false;
@@ -61,30 +63,77 @@ class Fish {
 
   }
 
+
   draw() {
     push();
     translate(this.x, this.y);
-    rotate(atan2(this.vy, this.vx));
+    
 
-    // Gen Z Palette: Use slightly de-saturated "clay" colors or high-contrast "toxic" neon
-    // fill(red(this.color), green(this.color), blue(this.color), 230);
-    noFill()
-    strokeWeight(2);
-    stroke(red(this.color), green(this.color), blue(this.color), 200);
+    noStroke();
+    fill(red(this.color), green(this.color), blue(this.color), 200);
 
+    let p = this.isSmall ? 3 : 6; // "p" is the size of each pixel
 
-    // Drawing an imperfect, "blobby" diamond/fish shape
-    beginShape();
-    for (let a = 0; a < TWO_PI; a += .2) {
-      // Adding noise to the radius makes the shape "wiggle" as it flies
-      let wobble = noise(frameCount * 0.2, a) * 5;
-      let r = 12 + wobble;
-      let x = cos(a) * r * 1.2; // Longer body
-      let y = sin(a) * r * 0.3; // Thinner body
-      vertex(x, y);
+    // DRAWING A PIXELATED "SOOT" BLOB
+    // Row-by-row grid drawing (0 = empty, 1 = pixel)
+    const sprite = [
+      [0, 1, 1, 1, 0],
+      [1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1],
+      [1, 1, 1, 1, 1],
+      [0, 1, 1, 1, 0]
+    ];
+
+    for (let row = 0; row < sprite.length; row++) {
+      for (let col = 0; col < sprite[row].length; col++) {
+        if (sprite[row][col] === 1) {
+          // Offset each pixel to center the sprite
+          let posX = (col - 2) * p;
+          let posY = (row - 2) * p;
+
+          // Adding a tiny bit of "jitter" to make them feel alive
+          let jitterX = noise(frameCount * 0.2, this.x) * 2;
+          rect(posX + jitterX, posY, p, p);
+        }
+      }
     }
 
-    endShape(CLOSE);
+    // Add "8-bit eyes"
+    fill(255, 255, 255, 50);
+    rect(-p, -p, p, p); // Left eye
+    rect(p, -p, p, p);  // Right eye
+
+    pop();
+  }
+}
+class Star {
+  constructor() {
+    this.x = random(width);
+    this.y = random(height * CONFIG.horizon - 40); // Only in the sky
+    this.size = random(1, 3);
+    this.offset = random(TWO_PI); // Random start point for the twinkle
+    this.speed = random(0.02, 0.05);
+  }
+
+  draw() {
+    let twinkle = map(sin(frameCount * this.speed + this.offset), -1, 1, 30, 200);
+    noStroke();
+
+    push();
+    translate(this.x, this.y);
+
+    // 1. The Core (Brightest)
+    fill(255, 255, 255, twinkle);
+    rect(0, 0, 2, 2);
+
+    // 2. The "Fuzz" (Dimmer pixels in a cross pattern)
+    // This simulates the glow/bleeding of a CRT monitor
+    fill(255, 255, 255, twinkle * 0.4);
+    rect(-2, 0, 2, 2); // Left
+    rect(2, 0, 2, 2);  // Right
+    rect(0, -2, 2, 2); // Top
+    rect(0, 2, 2, 2);  // Bottom
+
     pop();
   }
 }
@@ -93,10 +142,10 @@ class Fish {
 const CONFIG = {
   horizon: 0.5,
   waveSpeed: 0.007,
-  gravity: 0.5,
+  gravity:  0.7,
   hazeAlpha: 80,
+  //color lerp 
   lerpSpeed: .05,
-  highNoteThreshold: 0 // C6
 };
 
 // --- GLOBAL STATE ---
@@ -104,16 +153,22 @@ let state = {
   pianoActiveNotes: new NoteArray(),
   padActiveNotes: new NoteArray(),
   colors: { target: [20, 20, 30], display: null },
-  physics: { intensity: 0, splash: 0, highNotes: 0 },
-  objects: { fishes: [] }
+  physics: { intensity: 0, splash: 0 },
+  objects: { fishes: [], stars: [] }
 };
 
 // --- 3. P5.JS CORE ---
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   state.colors.display = color(20, 20, 30);
+  for (let i = 0; i < 100; i++) {
+    state.objects.stars.push(new Star());
+  }
   initMIDI();
   blendMode(ADD);
+
+
 }
 
 function draw() {
@@ -122,13 +177,21 @@ function draw() {
   blendMode(BLEND);
   fill(10, 10, 20, 200);
   rect(0, 0, width, height);
+
+  for (let s of state.objects.stars) {
+    s.draw();
+  }
   blendMode(ADD);
 
   // Render Layers
+
   renderFishes();
   renderOcean();
   renderUI();
+
+
 }
+
 
 // --- 4. LOGIC & PHYSICS ENGINE ---
 function updateGlobalPhysics() {
@@ -166,57 +229,82 @@ function updateMusicLogic() {
   }
 
   // Count High Notes
-  state.physics.highNotes = pianoNotes.filter(id => Tonal.Note.get(id).midi >= CONFIG.highNoteThreshold).length;
 }
 
 // --- 5. VISUAL MODULES (Isolated with push/pop) ---
 function renderOcean() {
   push();
   let horizon = height * CONFIG.horizon;
-  let ebb = map(sin(frameCount * 0.01), -1, 1, 0.8, 5);
+  let ebb = map(sin(frameCount * 0.005), -1, 1, 0.8, 1.8);
 
-  noFill();
-  drawingContext.shadowBlur = 10;
-  drawingContext.shadowColor = state.colors.display;
 
-  for (let i = 0; i < 15; i++) { // More lines for a denser look
-    // 1. Perspective Math
+  for (let i = 0; i < 15; i++) {
     let progress = i / 15;
     let yBase = lerp(horizon, height, Math.pow(progress, 2));
+    let alphaVal = map(i, 0, 15, 20, 120);
 
-    // 2. Fading and Thickness
-    let alpha = map(i, 0, 15, 30, 180);
-    let weight = map(i, 0, 15, 0.5, 4);
+    // 2. STACKED FILL: Gives the water volume and "weight"
+    // We use a very low alpha so layers build up color density
+    fill(red(state.colors.display), green(state.colors.display), blue(state.colors.display), 12);
 
-    let waveColor = color(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alpha);
-    stroke(waveColor);
-    noFill();
-
-    strokeWeight(weight);
+    // 3. PERSPECTIVE WEIGHT: Thicker lines in the front
+    strokeWeight(map(i, 0, 15, 1, 3.5));
 
     beginShape();
-    // Smaller step (15) makes the lines "silky" instead of "pixelated"
-    for (let x = 0; x <= width + 20; x += 15) {
+    // Start at bottom to close the fill properly
+    vertex(0, height);
 
-      // 3. Multi-layered Noise
-      let bigSwell = noise(x * 0.004, i * 0.1, frameCount * CONFIG.waveSpeed);
-      let smallChop = noise(x * 0.015, i, frameCount * CONFIG.waveSpeed * 2.5);
+    for (let x = 0; x <= width + 30; x += 5) {
+      // Multi-layered Noise for "Interesting" movement
+      let bigSwell = noise(x * 0.003, i * 0.1, frameCount * CONFIG.waveSpeed);
+      let smallChop = noise(x * 0.012, i, frameCount * CONFIG.waveSpeed * 3);
+      let waveMath = Math.pow((bigSwell * 0.7) + (smallChop * 0.3), 1.2);
 
-      let waveMath = (bigSwell * 0.7) + (smallChop * 0.3);
-      // Pinch the crests
-      waveMath = Math.pow(waveMath, 1.2);
+      let waveHeight = (map(state.physics.intensity, 0, 10, 30, 130) + state.physics.splash) * ebb;
+      let yOffset = waveMath * waveHeight * (progress + 0.6);
+      let currentY = yBase + (yOffset - waveHeight / 2);
 
-      let waveHeight = (map(state.physics.intensity, 0, 10, 10, 50) + state.physics.splash) * ebb;
-      let speedScale = map(i, 0, 12, 0.2, 1.0);
-      let waveBackgroundSpeed = noise(x * 0.005, i, frameCount * CONFIG.waveSpeed * speedScale)
-      let yOffset = waveMath * waveHeight * (progress + 0.5) * waveBackgroundSpeed; // Foreground waves are taller and move faster
+      // wave thickener
+      stroke(255, 0, 0, 10);
+      vertex(x - 40, currentY);
+
+      // This draws the main wave color at the actual x position
+      // (Note: This stroke will apply to the line segment being created)
+      stroke(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alphaVal);
+      vertex(x, currentY);
+
+      // 4. SHIMMER LOGIC: Highlights the peaks of the waves
+      let peakHighlight = map(waveMath, 0.6, 1.0, 0, 255, true);
+      if (peakHighlight > 10) {
+        stroke(255, 255, 255, peakHighlight * (alphaVal / 255));
+      } else {
+        stroke(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alphaVal);
+      }
+
+      vertex(x, currentY);
+
+      // 5. ARTSY DUST: Integrated into the geometry
+      let dustNoise = noise(x * 0.1, i, frameCount * 0.01);
 
 
-      vertex(x, yBase + (yOffset - waveHeight / 2));
+      if (dustNoise > 0.68) {
+        push();
+        // Use noise for position too, so they "drift" instead of "teleport"
 
-      
+        let driftX = noise(frameCount * 0.02, x) * 40 - 20;
+        let driftY = noise(frameCount * 0.02, i) * 30;
+
+        strokeWeight(random(1, 3));
+        stroke(255, alphaVal * 0.4);
+        point(x + driftX, currentY + driftY);
+        pop();
+      }
+
+
     }
-    endShape();
+
+    vertex(width, height); // Close back to bottom right
+    endShape(CLOSE);
   }
   pop();
 }
@@ -238,7 +326,7 @@ function renderUI() {
   blendMode(BLEND);
   noStroke();
   fill(255, 150);
-  textFont("Courier New");
+  textFont(" 'Press Start 2P' ");
   textStyle(BOLD);
   textSize(32);
   text(state.padActiveNotes.chord.current, 40, height - 40);
@@ -252,7 +340,7 @@ function initMIDI() {
   WebMidi.enable().then(() => {
     if (WebMidi.inputs.length < 1) return;
     const piano = WebMidi.inputs[0];
-    const pad = WebMidi.inputs[1];
+    const pad = WebMidi.inputs[0];
 
     const handleEvent = (noteArray, e, isAdd) => {
       if (isAdd) noteArray.add(e.note);
@@ -262,15 +350,26 @@ function initMIDI() {
 
     piano.addListener("noteon", e => {
       handleEvent(state.pianoActiveNotes, e, true);
-      if (e.note.number >= CONFIG.highNoteThreshold) {
-        // Make sure 'state.colors.display' is actually a p5 color object
-        console.log(e.note.attack)
+
+
+      if (e.note.accidental == "#") {
+
         state.objects.fishes.push(new Fish(
           map(e.note.number, 60, 100, width * 0.2, width * 0.8),
           state.colors.display,
-          e.note.attack
+          e.note.attack,
+          true
         ));
       }
+      else {
+        state.objects.fishes.push(new Fish(
+          map(e.note.number, 60, 100, width * 0.2, width * 0.8),
+          state.colors.display,
+          e.note.attack,
+          false
+        ));
+      }
+
     });
 
     piano.addListener("noteoff", e => {
