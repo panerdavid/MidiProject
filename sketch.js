@@ -37,31 +37,54 @@ class NoteArray {
   }
 }
 class Fish {
-  constructor(x, col) {
+  constructor(x, col, vel) {
     this.x = x;
-    this.y = height * CONFIG.horizon;
+    this.y = (height + 50) * CONFIG.horizon;
     this.vx = random(-2, 2);
-    this.vy = random(-12, -18);
+    this.vy = map(vel, 0, 1, -5, -20);
     this.color = col;
     this.alive = true;
+    this.history = []; // Store past positions
   }
 
   update() {
+    this.history.push({ x: this.x, y: this.y });
+    if (this.history.length > 10) this.history.shift();
     this.x += this.vx;
     this.y += this.vy;
     this.vy += CONFIG.gravity;
+    this.vx *= 0.99;
     if (this.y > height * CONFIG.horizon + 20 && this.vy > 0) {
       this.alive = false;
-      state.physics.splash += 5;
+      state.physics.splash += 1;
     }
+
   }
 
   draw() {
-    fill(red(this.color), green(this.color), blue(this.color), 200);
     push();
     translate(this.x, this.y);
     rotate(atan2(this.vy, this.vx));
-    ellipse(0, 0, 15, 7);
+
+    // Gen Z Palette: Use slightly de-saturated "clay" colors or high-contrast "toxic" neon
+    // fill(red(this.color), green(this.color), blue(this.color), 230);
+    noFill()
+    strokeWeight(2);
+    stroke(red(this.color), green(this.color), blue(this.color), 200);
+
+
+    // Drawing an imperfect, "blobby" diamond/fish shape
+    beginShape();
+    for (let a = 0; a < TWO_PI; a += .2) {
+      // Adding noise to the radius makes the shape "wiggle" as it flies
+      let wobble = noise(frameCount * 0.2, a) * 5;
+      let r = 12 + wobble;
+      let x = cos(a) * r * 1.2; // Longer body
+      let y = sin(a) * r * 0.3; // Thinner body
+      vertex(x, y);
+    }
+
+    endShape(CLOSE);
     pop();
   }
 }
@@ -69,10 +92,10 @@ class Fish {
 // --- CONFIGURATION & SETTINGS ---
 const CONFIG = {
   horizon: 0.5,
-  waveSpeed: 0.02,
+  waveSpeed: 0.007,
   gravity: 0.5,
   hazeAlpha: 80,
-  lerpSpeed: 1,
+  lerpSpeed: .05,
   highNoteThreshold: 0 // C6
 };
 
@@ -80,7 +103,6 @@ const CONFIG = {
 let state = {
   pianoActiveNotes: new NoteArray(),
   padActiveNotes: new NoteArray(),
-  chord: { current: "", last: "" },
   colors: { target: [20, 20, 30], display: null },
   physics: { intensity: 0, splash: 0, highNotes: 0 },
   objects: { fishes: [] }
@@ -96,10 +118,9 @@ function setup() {
 
 function draw() {
   updateGlobalPhysics();
-
   // Sky Background (using BLEND to clear the frame)
   blendMode(BLEND);
-  fill(10, 10, 20, 30);
+  fill(10, 10, 20, 200);
   rect(0, 0, width, height);
   blendMode(ADD);
 
@@ -124,13 +145,14 @@ function updateMusicLogic() {
   let synthNotes = Array.from(state.padActiveNotes.activeNotes)
   let detected = Tonal.Chord.detect(synthNotes);
 
+  //Chord Color Change Logic
   if (detected.length > 0) {
     let newChord = detected[0];
-    if (newChord !== state.chord.last) {
-      state.physics.splash = 80;
-      state.chord.last = newChord;
+    if (newChord !== state.padActiveNotes.chord.last) {
+      state.physics.splash = 10;
+      state.padActiveNotes.chord.last = newChord;
     }
-    state.chord.current = newChord;
+    state.padActiveNotes.chord.current = newChord;
 
     // Update Target Colors
     let details = Tonal.Chord.get(newChord);
@@ -138,8 +160,8 @@ function updateMusicLogic() {
     else if (details.quality === "Minor") state.colors.target = [50, 120, 255];
     else state.colors.target = [180, 100, 255];
   } else {
-    state.chord.current = "";
-    state.chord.last = "";
+    state.padActiveNotes.chord.current = "";
+    state.padActiveNotes.chord.last = "";
     state.colors.target = [20, 20, 30];
   }
 
@@ -150,37 +172,61 @@ function updateMusicLogic() {
 // --- 5. VISUAL MODULES (Isolated with push/pop) ---
 function renderOcean() {
   push();
-  let ebb = map(sin(frameCount * 0.01), -1, 1, 0.9, 5.0);
-
   let horizon = height * CONFIG.horizon;
-  let baseWaveHeight = map(state.physics.intensity, 0, 10, 5, 25);
-  let totalWaveHeight = (baseWaveHeight + state.physics.splash) * ebb;
+  let ebb = map(sin(frameCount * 0.01), -1, 1, 0.8, 5);
 
   noFill();
-  drawingContext.shadowBlur = 15;
+  drawingContext.shadowBlur = 10;
   drawingContext.shadowColor = state.colors.display;
 
-  for (let i = 0; i < 12; i++) {
-    let yBase = map(i * i, 0, 144, horizon, height);
-    let alpha = map(i, 0, 12, 40, 150);
-    stroke(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alpha);
+  for (let i = 0; i < 15; i++) { // More lines for a denser look
+    // 1. Perspective Math
+    let progress = i / 15;
+    let yBase = lerp(horizon, height, Math.pow(progress, 2));
+
+    // 2. Fading and Thickness
+    let alpha = map(i, 0, 15, 30, 180);
+    let weight = map(i, 0, 15, 0.5, 4);
+
+    let waveColor = color(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alpha);
+    stroke(waveColor);
+    noFill();
+
+    strokeWeight(weight);
 
     beginShape();
-    for (let x = 0; x <= width; x += 40) {
+    // Smaller step (15) makes the lines "silky" instead of "pixelated"
+    for (let x = 0; x <= width + 20; x += 15) {
 
-      let yOffset = noise(x * 0.005, i, frameCount * CONFIG.waveSpeed) * totalWaveHeight;
-      vertex(x, yBase + yOffset);
+      // 3. Multi-layered Noise
+      let bigSwell = noise(x * 0.004, i * 0.1, frameCount * CONFIG.waveSpeed);
+      let smallChop = noise(x * 0.015, i, frameCount * CONFIG.waveSpeed * 2.5);
+
+      let waveMath = (bigSwell * 0.7) + (smallChop * 0.3);
+      // Pinch the crests
+      waveMath = Math.pow(waveMath, 1.2);
+
+      let waveHeight = (map(state.physics.intensity, 0, 10, 10, 50) + state.physics.splash) * ebb;
+      let speedScale = map(i, 0, 12, 0.2, 1.0);
+      let waveBackgroundSpeed = noise(x * 0.005, i, frameCount * CONFIG.waveSpeed * speedScale)
+      let yOffset = waveMath * waveHeight * (progress + 0.5) * waveBackgroundSpeed; // Foreground waves are taller and move faster
+
+
+      vertex(x, yBase + (yOffset - waveHeight / 2));
+
+      
     }
     endShape();
   }
   pop();
 }
-
 function renderFishes() {
   push();
   for (let i = state.objects.fishes.length - 1; i >= 0; i--) {
     let f = state.objects.fishes[i];
-    f.update();
+    if (frameCount % 2 === 0) {
+      f.update();
+    }
     f.draw();
     if (!f.alive) state.objects.fishes.splice(i, 1);
   }
@@ -192,8 +238,10 @@ function renderUI() {
   blendMode(BLEND);
   noStroke();
   fill(255, 150);
-  textSize(24);
-  text(state.chord.current, 40, height - 40);
+  textFont("Courier New");
+  textStyle(BOLD);
+  textSize(32);
+  text(state.padActiveNotes.chord.current, 40, height - 40);
   pop();
 }
 
@@ -214,6 +262,15 @@ function initMIDI() {
 
     piano.addListener("noteon", e => {
       handleEvent(state.pianoActiveNotes, e, true);
+      if (e.note.number >= CONFIG.highNoteThreshold) {
+        // Make sure 'state.colors.display' is actually a p5 color object
+        console.log(e.note.attack)
+        state.objects.fishes.push(new Fish(
+          map(e.note.number, 60, 100, width * 0.2, width * 0.8),
+          state.colors.display,
+          e.note.attack
+        ));
+      }
     });
 
     piano.addListener("noteoff", e => {
