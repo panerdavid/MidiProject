@@ -1,10 +1,16 @@
 body {
+  /* This makes the whole window draggable like a normal app */
+  -webkit-app-region: drag;
   margin: 0;
-  padding: 0;
-  overflow: hidden; /* Removes scrollbars */
-  background-color: #14141e; /* Matches the sketch background */
+  overflow: hidden;
+  background-color: #14141e;
 }
 
-canvas {
-  display: block; /* Removes tiny gaps at the bottom of the canvas */
+
+canvas,
+button,
+.ui-elements {
+  /* IMPORTANT: You must disable dragging on interactive elements 
+     or you won't be able to click them! */
+  -webkit-app-region: no-drag;
 }

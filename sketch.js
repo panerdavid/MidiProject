@@ -108,8 +108,8 @@ class Fish {
 }
 class Star {
   constructor() {
-    this.x = random(width);
-    this.y = random(height * CONFIG.horizon - 40); // Only in the sky
+    this.x = random(windowWidth);
+    this.y = random(windowHeight * CONFIG.horizon - 40); // Only in the sky
     this.size = random(1, 3);
     this.offset = random(TWO_PI); // Random start point for the twinkle
     this.speed = random(0.02, 0.05);
@@ -400,15 +400,18 @@ function getBetterChord(chordList, rawNotes) {
   
 
   let root = Tonal.Note.pitchClass(sortedNotes[0]);
-console.log(root)
 
   // 3. Find the first detection that starts with our actual root note
   let bestFit = chordList.find(d => d.startsWith(root));
-console.log(chordList)
+
   // 4. Fallback: If no root match, just take the first detection
   return bestFit || chordList[0] || "";
 }
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
+  state.objects.stars = [];
+  for (let i = 0; i < 100; i++) {
+    state.objects.stars.push(new Star());
+  }
 }
