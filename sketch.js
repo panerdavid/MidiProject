@@ -67,7 +67,7 @@ class Fish {
   draw() {
     push();
     translate(this.x, this.y);
-    
+
 
     noStroke();
     fill(red(this.color), green(this.color), blue(this.color), 200);
@@ -142,7 +142,7 @@ class Star {
 const CONFIG = {
   horizon: 0.5,
   waveSpeed: 0.007,
-  gravity:  0.7,
+  gravity: 0.7,
   hazeAlpha: 80,
   //color lerp 
   lerpSpeed: .05,
@@ -205,12 +205,12 @@ function updateGlobalPhysics() {
 
 function updateMusicLogic() {
   let pianoNotes = Array.from(state.pianoActiveNotes.activeNotes);
-  let synthNotes = Array.from(state.padActiveNotes.activeNotes)
+  let synthNotes = Array.from(state.padActiveNotes.activeNotes);
   let detected = Tonal.Chord.detect(synthNotes);
-
+  let chord = getBetterChord(detected, synthNotes)
   //Chord Color Change Logic
   if (detected.length > 0) {
-    let newChord = detected[0];
+    let newChord = chord;
     if (newChord !== state.padActiveNotes.chord.last) {
       state.physics.splash = 10;
       state.padActiveNotes.chord.last = newChord;
@@ -228,7 +228,6 @@ function updateMusicLogic() {
     state.colors.target = [20, 20, 30];
   }
 
-  // Count High Notes
 }
 
 // --- 5. VISUAL MODULES (Isolated with push/pop) ---
@@ -328,8 +327,14 @@ function renderUI() {
   fill(255, 150);
   textFont(" 'Press Start 2P' ");
   textStyle(BOLD);
+ // 2. Centering Logic:
+  textAlign(CENTER, CENTER); 
   textSize(32);
-  text(state.padActiveNotes.chord.current, 40, height - 40);
+  
+  // Use width/2 and height/2 to put it in the dead center
+  // Or keep height - 100 if you want it centered at the bottom
+  text(state.padActiveNotes.chord.current, width / 2, height / 2);
+  
   pop();
 }
 
@@ -387,7 +392,22 @@ function initMIDI() {
 
 }
 
+function getBetterChord(chordList, rawNotes) {
+  if (rawNotes.length < 3) return "";
 
+  // 1. Sort notes by pitch to find the lowest (the Bass)
+  let sortedNotes = rawNotes.sort((a, b) => Tonal.Midi.toMidi(a) - Tonal.Midi.toMidi(b));
+  
+
+  let root = Tonal.Note.pitchClass(sortedNotes[0]);
+console.log(root)
+
+  // 3. Find the first detection that starts with our actual root note
+  let bestFit = chordList.find(d => d.startsWith(root));
+console.log(chordList)
+  // 4. Fallback: If no root match, just take the first detection
+  return bestFit || chordList[0] || "";
+}
 
 function windowResized() {
   resizeCanvas(windowWidth, windowHeight);
