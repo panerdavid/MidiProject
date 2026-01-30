@@ -126,6 +126,7 @@ class Star {
     fill(255, 255, 255, twinkle);
     rect(0, 0, 2, 2);
 
+
     // 2. The "Fuzz" (Dimmer pixels in a cross pattern)
     // This simulates the glow/bleeding of a CRT monitor
     fill(255, 255, 255, twinkle * 0.4);
@@ -175,7 +176,7 @@ function draw() {
   updateGlobalPhysics();
   // Sky Background (using BLEND to clear the frame)
   blendMode(BLEND);
-  fill(10, 10, 20, 200);
+  fill(45, 27, 78, 200);
   rect(0, 0, width, height);
 
   for (let s of state.objects.stars) {
@@ -204,7 +205,6 @@ function updateGlobalPhysics() {
 }
 
 function updateMusicLogic() {
-  let pianoNotes = Array.from(state.pianoActiveNotes.activeNotes);
   let synthNotes = Array.from(state.padActiveNotes.activeNotes);
   let detected = Tonal.Chord.detect(synthNotes);
   let chord = getBetterChord(detected, synthNotes)
@@ -334,7 +334,7 @@ function renderUI() {
   // Use width/2 and height/2 to put it in the dead center
   // Or keep height - 100 if you want it centered at the bottom
   text(state.padActiveNotes.chord.current, width / 2, height / 2);
-  
+  drawScanlines()
   pop();
 }
 
@@ -344,7 +344,7 @@ function renderUI() {
 function initMIDI() {
   WebMidi.enable().then(() => {
     if (WebMidi.inputs.length < 1) return;
-    const piano = WebMidi.inputs[0];
+    const piano = WebMidi.inputs[1];
     const pad = WebMidi.inputs[0];
 
     const handleEvent = (noteArray, e, isAdd) => {
@@ -389,9 +389,19 @@ function initMIDI() {
     });
   });
 
-
 }
 
+function drawScanlines() {
+  push();
+  stroke(0, 0, 0, 40); // Very faint black lines
+  strokeWeight(1);
+  
+  // Draw a horizontal line every 3 pixels
+  for (let i = 0; i < height; i += 3) {
+    line(0, i, width, i);
+  }
+  pop();
+}
 function getBetterChord(chordList, rawNotes) {
   if (rawNotes.length < 3) return "";
 
