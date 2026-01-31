@@ -1,25 +1,32 @@
-How to Run
-Option 1: Electron
-This method provides a dedicated window for the experience.
+## 🚀 How to Run
 
-Install Dependencies: Ensure you have Node.js installed, then run:
+### Option 1: Electron
+This method provides a dedicated, high-performance window for the experience.
 
-npm install
-npm start
+1.  **Install Dependencies:** Ensure you have [Node.js](https://nodejs.org/) installed.
+2.  **Launch the App:** Open your terminal in the project folder and run:
+    ```bash
+    npm install
+    npm start
+    ```
 
-Option 2: Live Server
+---
 
-Open in VS Code.
+### Option 2: Live Server
+Use this if you just want to run it in your browser.
 
-Launch Live Server:
+1.  **Open in VS Code.**
+2.  **Launch Live Server:** Click the **"Go Live"** button in the bottom right corner of VS Code (requires the *Live Server* extension).
+3.  **MIDI Permissions:** When prompted by your browser, ensure you click **"Allow"** for MIDI device access.
 
-Click the "Go Live" button in the bottom right corner of VS Code (requires downloading the Live Server extension).
+---
 
-MIDI Permissions:
+## 🎹 MIDI Configuration
 
-When prompted by the browser, ensure you click "Allow" for MIDI device access.
+> [!IMPORTANT]
+> I am currently working on a more robust setup. For now, the app assigns functionality based on the order of recognition:
 
-MIDI Configuration
+* **First MIDI Device:** Controls the waves.
+* **Second MIDI Device:** Triggers the sprites that bounce around.
 
-Working on a better way to set this up, but for now the first midi device recognized will control the waves and the second will trigger the sprites that bounce around.
-If they aren't connected in the right order simply unplug and replug the connections in the order you want them. 
+**Tip:** If your devices aren't connected in the right order, simply unplug and replug the connections in the specific order you want them detected.
