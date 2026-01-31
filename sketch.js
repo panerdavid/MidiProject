@@ -1,10 +1,3 @@
-/**
- * DREAMY MIDI OCEAN - ORGANIZED STRUCTURE
- * Sections: Settings, State, p5.js Core, Logic, Visual Modules, Classes
- */
-
-
-
 // --- CLASSES ---
 class NoteArray {
   constructor() {
@@ -46,7 +39,7 @@ class Fish {
     this.isSmall = isSmall
     this.alive = true;
     this.angle = 45;
-    this.history = []; // Store past positions
+    this.history = []; 
   }
 
   update() {
@@ -72,10 +65,9 @@ class Fish {
     noStroke();
     fill(red(this.color), green(this.color), blue(this.color), 200);
 
-    let p = this.isSmall ? 3 : 6; // "p" is the size of each pixel
+    let p = this.isSmall ? 3 : 6; // pixel size
 
-    // DRAWING A PIXELATED "SOOT" BLOB
-    // Row-by-row grid drawing (0 = empty, 1 = pixel)
+    //PIXELATED "SOOT" BLOB
     const sprite = [
       [0, 1, 1, 1, 0],
       [1, 1, 1, 1, 1],
@@ -91,17 +83,17 @@ class Fish {
           let posX = (col - 2) * p;
           let posY = (row - 2) * p;
 
-          // Adding a tiny bit of "jitter" to make them feel alive
+          // Add tiny bit of "jitter" to make them feel alive
           let jitterX = noise(frameCount * 0.2, this.x) * 2;
           rect(posX + jitterX, posY, p, p);
         }
       }
     }
 
-    // Add "8-bit eyes"
+    // add eyes
     fill(255, 255, 255, 50);
-    rect(-p, -p, p, p); // Left eye
-    rect(p, -p, p, p);  // Right eye
+    rect(-p, -p, p, p); 
+    rect(p, -p, p, p); 
 
     pop();
   }
@@ -109,9 +101,9 @@ class Fish {
 class Star {
   constructor() {
     this.x = random(windowWidth);
-    this.y = random(windowHeight * CONFIG.horizon - 40); // Only in the sky
+    this.y = random(windowHeight * CONFIG.horizon - 40); 
     this.size = random(1, 3);
-    this.offset = random(TWO_PI); // Random start point for the twinkle
+    this.offset = random(TWO_PI); // Random start point for twinkling
     this.speed = random(0.02, 0.05);
   }
 
@@ -122,7 +114,7 @@ class Star {
     push();
     translate(this.x, this.y);
 
-    // 1. The Core (Brightest)
+    // 1. Star core 
     fill(255, 255, 255, twinkle);
     rect(0, 0, 2, 2);
 
@@ -145,7 +137,7 @@ const CONFIG = {
   waveSpeed: 0.007,
   gravity: 0.7,
   hazeAlpha: 80,
-  //color lerp 
+  //color lerp, change to affect speed of color transitions
   lerpSpeed: .05,
 };
 
@@ -242,11 +234,10 @@ function renderOcean() {
     let yBase = lerp(horizon, height, Math.pow(progress, 2));
     let alphaVal = map(i, 0, 15, 20, 120);
 
-    // 2. STACKED FILL: Gives the water volume and "weight"
-    // We use a very low alpha so layers build up color density
+    // STACKED FILL: Gives the water volume and "weight"
     fill(red(state.colors.display), green(state.colors.display), blue(state.colors.display), 12);
 
-    // 3. PERSPECTIVE WEIGHT: Thicker lines in the front
+    // PERSPECTIVE WEIGHT: Thicker lines in the front
     strokeWeight(map(i, 0, 15, 1, 3.5));
 
     beginShape();
@@ -254,7 +245,7 @@ function renderOcean() {
     vertex(0, height);
 
     for (let x = 0; x <= width + 30; x += 5) {
-      // Multi-layered Noise for "Interesting" movement
+      // Multi-layered Noise for movement
       let bigSwell = noise(x * 0.003, i * 0.1, frameCount * CONFIG.waveSpeed);
       let smallChop = noise(x * 0.012, i, frameCount * CONFIG.waveSpeed * 3);
       let waveMath = Math.pow((bigSwell * 0.7) + (smallChop * 0.3), 1.2);
@@ -263,16 +254,16 @@ function renderOcean() {
       let yOffset = waveMath * waveHeight * (progress + 0.6);
       let currentY = yBase + (yOffset - waveHeight / 2);
 
-      // wave thickener
+      // thicken waves
       stroke(255, 0, 0, 10);
       vertex(x - 40, currentY);
 
-      // This draws the main wave color at the actual x position
+      // draw the main wave color at the actual x position
       // (Note: This stroke will apply to the line segment being created)
       stroke(red(state.colors.display), green(state.colors.display), blue(state.colors.display), alphaVal);
       vertex(x, currentY);
 
-      // 4. SHIMMER LOGIC: Highlights the peaks of the waves
+      // SHIMMER LOGIC: Highlights the peaks of the waves
       let peakHighlight = map(waveMath, 0.6, 1.0, 0, 255, true);
       if (peakHighlight > 10) {
         stroke(255, 255, 255, peakHighlight * (alphaVal / 255));
@@ -282,13 +273,13 @@ function renderOcean() {
 
       vertex(x, currentY);
 
-      // 5. ARTSY DUST: Integrated into the geometry
+      // DUST logic
       let dustNoise = noise(x * 0.1, i, frameCount * 0.01);
 
 
       if (dustNoise > 0.68) {
         push();
-        // Use noise for position too, so they "drift" instead of "teleport"
+        // noise for position drift effect 
 
         let driftX = noise(frameCount * 0.02, x) * 40 - 20;
         let driftY = noise(frameCount * 0.02, i) * 30;
@@ -327,12 +318,8 @@ function renderUI() {
   fill(255, 150);
   textFont(" 'Press Start 2P' ");
   textStyle(BOLD);
- // 2. Centering Logic:
   textAlign(CENTER, CENTER); 
   textSize(32);
-  
-  // Use width/2 and height/2 to put it in the dead center
-  // Or keep height - 100 if you want it centered at the bottom
   text(state.padActiveNotes.chord.current, width / 2, height / 2);
   drawScanlines()
   pop();
@@ -391,30 +378,33 @@ function initMIDI() {
 
 }
 
+// CRT SCANLINE EFFECT
 function drawScanlines() {
   push();
-  stroke(0, 0, 0, 40); // Very faint black lines
+  stroke(0, 0, 0, 40); 
   strokeWeight(1);
   
-  // Draw a horizontal line every 3 pixels
+  // horizontal line every 3 pixels
   for (let i = 0; i < height; i += 3) {
     line(0, i, width, i);
   }
   pop();
 }
+
+// HACKY FIX FOR IMPROVING TONAL.JS CHORD RECOGNITION 
 function getBetterChord(chordList, rawNotes) {
   if (rawNotes.length < 3) return "";
 
-  // 1. Sort notes by pitch to find the lowest (the Bass)
+  // Sort notes by pitch to find bass note
   let sortedNotes = rawNotes.sort((a, b) => Tonal.Midi.toMidi(a) - Tonal.Midi.toMidi(b));
   
 
   let root = Tonal.Note.pitchClass(sortedNotes[0]);
 
-  // 3. Find the first detection that starts with our actual root note
+  // Find the first tonal.js detection that starts with the root note
   let bestFit = chordList.find(d => d.startsWith(root));
 
-  // 4. Fallback: If no root match, just take the first detection
+  // If no root match, just take first detection
   return bestFit || chordList[0] || "";
 }
 
