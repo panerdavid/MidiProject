@@ -1,0 +1,24 @@
+{
+  "name": "midi_project",
+  "version": "1.0.0",
+  "description": "",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron ."
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/panerdavid/MidiProject.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/panerdavid/MidiProject/issues"
+  },
+  "homepage": "https://github.com/panerdavid/MidiProject#readme",
+  "devDependencies": {
+    "electron": "^40.1.0"
+  }
+}
